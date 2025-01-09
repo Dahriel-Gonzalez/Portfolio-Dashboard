@@ -205,7 +205,9 @@ analysis_mode = st.sidebar.radio(
 )
 
 if analysis_mode == "Single Stock":
-    ticker = st.sidebar.text_input("Stock Ticker", value="AAPL")
+    with st.sidebar.form("single_stock_form"):
+        ticker = st.text_input("Stock Ticker", value="AAPL")
+        st.form_submit_button("Load")
     days = st.sidebar.slider("Days of Historical Data", 30, 365, 180)
     show_ma = st.sidebar.checkbox("Show Moving Average", value=True)
 
@@ -503,7 +505,7 @@ else:
 # DATA FETCHING & CALCULATIONS
 # ---------------------------------------------------------------------------
 
-@st.cache_data
+@st.cache_data(ttl=300)
 def fetch_stock_data(ticker, num_days):
     try:
         end_date = datetime.now()
@@ -521,7 +523,7 @@ def fetch_stock_data(ticker, num_days):
         return None
 
 
-@st.cache_data
+@st.cache_data(ttl=300)
 def fetch_benchmark_data(benchmark_name, num_days):
     benchmark_tickers = {
         "S&P 500": "^GSPC",
@@ -1012,55 +1014,58 @@ if analysis_mode == "Portfolio Analysis":
     with tab4:
         st.subheader("Correlation Matrix")
 
-        returns_df = pd.DataFrame()
-        for i, stock_data in enumerate(portfolio_stocks):
-            tname = st.session_state.portfolio[i]['ticker']
-            returns_df[tname] = stock_data['Price'].pct_change()
+        if len(portfolio_stocks) < 2:
+            st.info("Add at least 2 stocks to your portfolio to see the correlation matrix.")
+        else:
+            returns_df = pd.DataFrame()
+            for i, stock_data in enumerate(portfolio_stocks):
+                tname = st.session_state.portfolio[i]['ticker']
+                returns_df[tname] = stock_data['Price'].pct_change()
 
-        returns_df = returns_df.dropna()
-        corr_matrix = returns_df.corr()
+            returns_df = returns_df.dropna()
+            corr_matrix = returns_df.corr()
 
-        fig_corr = go.Figure(data=go.Heatmap(
-            z=corr_matrix.values,
-            x=corr_matrix.columns, y=corr_matrix.columns,
-            colorscale='RdBu', zmid=0,
-            text=corr_matrix.values, texttemplate='%{text:.2f}',
-            textfont={"size": 12},
-            colorbar=dict(title="Correlation")
-        ))
-        fig_corr.update_layout(title='Correlation Matrix', width=600, height=600)
-        st.plotly_chart(fig_corr, use_container_width=True, key="corr_matrix")
+            fig_corr = go.Figure(data=go.Heatmap(
+                z=corr_matrix.values,
+                x=corr_matrix.columns, y=corr_matrix.columns,
+                colorscale='RdBu', zmid=0,
+                text=corr_matrix.values, texttemplate='%{text:.2f}',
+                textfont={"size": 12},
+                colorbar=dict(title="Correlation")
+            ))
+            fig_corr.update_layout(title='Correlation Matrix', width=600, height=600)
+            st.plotly_chart(fig_corr, use_container_width=True, key="corr_matrix")
 
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown("""
-            **Understanding Correlation:**
-            - **+1.0**: Perfect positive correlation
-            - **0.0**: No correlation
-            - **-1.0**: Perfect negative correlation
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("""
+                **Understanding Correlation:**
+                - **+1.0**: Perfect positive correlation
+                - **0.0**: No correlation
+                - **-1.0**: Perfect negative correlation
 
-            **For Diversification:**
-            - Aim for correlations < 0.7
-            - Negative correlations provide hedge protection
-            """)
-        with c2:
-            cnd = corr_matrix.values.copy()
-            np.fill_diagonal(cnd, np.nan)
-            mx = np.unravel_index(np.nanargmax(cnd), cnd.shape)
-            mn = np.unravel_index(np.nanargmin(cnd), cnd.shape)
-            avg = np.nanmean(cnd)
+                **For Diversification:**
+                - Aim for correlations < 0.7
+                - Negative correlations provide hedge protection
+                """)
+            with c2:
+                cnd = corr_matrix.values.copy()
+                np.fill_diagonal(cnd, np.nan)
+                mx = np.unravel_index(np.nanargmax(cnd), cnd.shape)
+                mn = np.unravel_index(np.nanargmin(cnd), cnd.shape)
+                avg = np.nanmean(cnd)
 
-            st.markdown("**Portfolio Insights:**")
-            st.write(f"**Highest:** {corr_matrix.columns[mx[0]]} & {corr_matrix.columns[mx[1]]}: {cnd[mx]:.2f}")
-            st.write(f"**Lowest:** {corr_matrix.columns[mn[0]]} & {corr_matrix.columns[mn[1]]}: {cnd[mn]:.2f}")
-            st.write(f"**Average:** {avg:.2f}")
+                st.markdown("**Portfolio Insights:**")
+                st.write(f"**Highest:** {corr_matrix.columns[mx[0]]} & {corr_matrix.columns[mx[1]]}: {cnd[mx]:.2f}")
+                st.write(f"**Lowest:** {corr_matrix.columns[mn[0]]} & {corr_matrix.columns[mn[1]]}: {cnd[mn]:.2f}")
+                st.write(f"**Average:** {avg:.2f}")
 
-            if avg > 0.7:
-                st.caption("High average correlation — portfolio may not be well diversified.")
-            elif avg < 0.3:
-                st.caption("Low average correlation — good diversification.")
-            else:
-                st.caption("Moderate average correlation — reasonable diversification.")
+                if avg > 0.7:
+                    st.caption("High average correlation — portfolio may not be well diversified.")
+                elif avg < 0.3:
+                    st.caption("Low average correlation — good diversification.")
+                else:
+                    st.caption("Moderate average correlation — reasonable diversification.")
 
 # --- About Tab ---
 about_tab = tab4 if analysis_mode == "Single Stock" else tab5
