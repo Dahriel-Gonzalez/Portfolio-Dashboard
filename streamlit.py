@@ -1015,7 +1015,9 @@ if analysis_mode == "Portfolio Analysis":
         st.subheader("Correlation Matrix")
 
         if len(portfolio_stocks) < 2:
-            st.info("Add at least 2 stocks to your portfolio to see the correlation matrix.")
+            st.markdown("""
+                        Add at least 2 stocks to your portfolio to see the correlation matrix.
+                        """)
         else:
             returns_df = pd.DataFrame()
             for i, stock_data in enumerate(portfolio_stocks):
