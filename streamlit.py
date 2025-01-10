@@ -191,6 +191,13 @@ def on_lock_change(idx):
 
     sync_slider_keys()
 
+def clear_slider_and_lock_keys():
+    """Remove all slider and lock widget keys from session state to prevent
+    stale-key conflicts after portfolio items are added, removed, or reindexed."""
+    stale = [k for k in st.session_state if k.startswith(("slider_", "lock_"))]
+    for k in stale:
+        del st.session_state[k]
+
 
 # ---------------------------------------------------------------------------
 # SIDEBAR
@@ -301,6 +308,7 @@ else:
                         'locked': False
                     })
 
+                clear_slider_and_lock_keys()
                 sync_slider_keys()
                 st.rerun()
             else:
@@ -410,7 +418,7 @@ else:
                     max_value=round(total_inv, 2),
                     step=dollar_step,
                     key=slider_key,
-                    format="$%,.0f",
+                    format="$%.0f",
                     label_visibility="collapsed",
                     disabled=item['locked'],
                     on_change=on_slider_change,
@@ -436,9 +444,9 @@ else:
                 st.session_state.portfolio.pop(i)
                 if st.session_state.auto_rebalance and st.session_state.portfolio:
                     equal_split_unlocked()
+                clear_slider_and_lock_keys()   # purge stale widget registrations first
                 sync_slider_keys()
                 st.rerun()
-
         # ---------------------------------------------------------------------------
         # STATUS BAR
         # ---------------------------------------------------------------------------
